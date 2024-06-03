@@ -56,14 +56,36 @@ MongoClient.connect("mongodb+srv://Databaseuser:Kynbataon@cluster0.kvycak7.mongo
         });
 
         // Update an object
-        app.put('/collection/:collectionName/:id', (req, res, next) => {
-            let id = new ObjectId(req.params.id);
-            req.collection.updateOne({ _id: id }, { $set: req.body }, { safe: true, multi: false },
-                (e, result) => {
-                    if (e) return next(e);
-                    res.send(result.modifiedCount === 1 ? { msg: 'success' } : { msg: 'error' });
-                });
-        });
+        // app.put('/collection/:collectionName/:id', (req, res, next) => {
+        //     let id = new ObjectId(req.params.id);
+        //     req.collection.updateOne({ _id: id }, { $set: req.body }, { safe: true, multi: false },
+        //         (e, result) => {
+        //             if (e) return next(e);
+        //             res.send(result.modifiedCount === 1 ? { msg: 'success' } : { msg: 'error' });
+        //         });
+        // });
+
+
+
+ app.put("/collection/:collectionName/:id", (req, res, next) => {
+  try {
+    const objectID = require("mongodb").ObjectID;
+
+    req.connection.updateOne(
+      { _id: new objectID(req.params.id) },
+      { $inc: { space: -1 } }, // Decrementing space by 1
+      (e, result) => {
+        if (e) return next(e);
+        res.send(
+          result.modifiedCount === 1 ? { msg: "Success" } : { msg: "error" }
+        );
+      }
+    );
+  } catch (ex) {
+    console.log("🚀 ~ app.put ~ ex:", ex);
+    next(ex); // Pass error to the error handler
+  }
+});
 
         // Search
         app.get('/collection/:collectionName/search', (req, res, next) => {
