@@ -106,23 +106,38 @@ MongoClient.connect("mongodb+srv://Databaseuser:Kynbataon@cluster0.kvycak7.mongo
         //         res.send(response);
         //     });
         // });
-        app.post('/collection/orders', (req, res) => {
-            const order = req.body; // Assuming the order data is sent in the request body
+         // Add order and update lesson spaces
+    app.post("/collection/order/confrimorder", async (req, res) => {
+      const order = req.body;
 
-            // Get the reference to the orders collection in MongoDB
-            const ordersCollection = client.db(cw2).collection('order');
+      try {
+        // Insert the order into MongoDB
+        const result = await Order.insertOne(order);
 
-            // Insert the order into MongoDB
-            ordersCollection.insertOne(order, (err, result) => {
-                if (err) {
-                    console.error('Error inserting order:', err);
-                    res.status(500).send('Error inserting order');
-                    return;
-                }
+        // Update lesson spaces
+        const lessonsToUpdate = order.cartProduct.map((lesson) => ({
+          updateOne: {
+            filter: { _id: ObjectId(lesson.id) }, // Update this line
+            update: { $inc: { space: -1 } }
+          }
+        }));
+        const updateResult = await Lesson.bulkWrite(lessonsToUpdate);
 
-                res.json({ message: 'Order inserted successfully' });
-            });
+        res.json({
+          message: "Order inserted successfully",
+          orderId: result.insertedId,
+          lessonsUpdated: updateResult.modifiedCount
         });
+      } catch (err) {
+        console.error("Error processing order:", err);
+        let errorMessage = "Error processing order";
+        if (err.code && err.code === 11000) {
+          // Example: Duplicate key error
+          errorMessage = "Duplicate order detected";
+        }
+        res.status(500).send(errorMessage);
+      }
+    });
         app.get('/collection/lesson/search', (req, res, next) => {
             let query_str = req.query.key_word;
             Lesson.find({
