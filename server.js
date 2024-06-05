@@ -1,73 +1,68 @@
-const path = require('path');
-const fs = require('fs');
-const cors = require('cors');
-const express = require('express');
-const { ObjectId } = require('mongodb');
-const MongoClient = require('mongodb').MongoClient;
+const path = require("path");
+const fs = require("fs");
+const cors = require("cors");
+const express = require("express");
+const { ObjectId } = require("mongodb");
+const MongoClient = require("mongodb").MongoClient;
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
+
+// Logger middleware
 app.use((req, res, next) => {
-    console.log(req.url);
-    next();
+  console.log("Request IP: " + req.url);
+  console.log("Request date: " + new Date());
+  next();
 });
 
-MongoClient.connect("mongodb+srv://Databaseuser:Kynbataon@cluster0.kvycak7.mongodb.net/", (err, client) => {
-    if (err) {
-        console.error('Error connecting to the database:', err);
-    } else {
-        const db = client.db('CW2');
-        console.log("Database connected");
+const connectionString =
+  "mongodb+srv://Databaseuser:Kynbataon@cluster0.kvycak7.mongodb.net/";
 
-        // Create Lesson Model
-        const Lesson = db.collection('lesson');
+const databaseName = "CW2";
 
-        // Fetch all lessons
-        app.get('/lesson', (req, res) => {
-            Lesson.find({}).toArray((err, lessons) => {
-                if (err) {
-                    res.status(500).send('Error retrieving lessons from the database');
-                } else {
-                    res.json(lessons);
-                }
-            });
-        });
+MongoClient.connect(connectionString, (err, client) => {
+  if (err) {
+    console.error("Error connecting to the database:", err);
+  } else {
+    const db = client.db(databaseName);
+    console.log("Database connected");
 
-        app.param('collectionName', (req, res, next, collectionName) => {
-            req.collection = db.collection(collectionName);
-            return next();
-        });
+    const Lesson = db.collection("lesson");
+    const Order = db.collection("order");
 
-        app.get('/collection/:collectionName', (req, res, next) => {
-            req.collection.find({}).toArray((e, results) => {
-                if (e) return next(e);
-                res.send(results);
-            });
-        });
+    app.get("/lesson", (req, res) => {
+      Lesson.find({}).toArray((err, lessons) => {
+        if (err) {
+          res.status(500).send("Error retrieving lessons from the database");
+        } else {
+          res.json(lessons);
+        }
+      });
+    });
 
-        app.post('/collection/:collectionName', (req, res, next) => {
-            req.collection.insert(req.body, (e, results) => {
-                if (e) return next(e);
-                let response = { "message": "success" };
-                res.send(response);
-            });
-        });
+    app.param("collectionName", (req, res, next, collectionName) => {
+      req.connection = db.collection(collectionName);
+      return next();
+    });
 
-        // Update an object
-        // app.put('/collection/:collectionName/:id', (req, res, next) => {
-        //     let id = new ObjectId(req.params.id);
-        //     req.collection.updateOne({ _id: id }, { $set: req.body }, { safe: true, multi: false },
-        //         (e, result) => {
-        //             if (e) return next(e);
-        //             res.send(result.modifiedCount === 1 ? { msg: 'success' } : { msg: 'error' });
-        //         });
-        // });
+    app.get("/collection/:collectionName", (req, res, next) => {
+      req.connection.find({}).toArray((e, results) => {
+        if (e) return next(e);
+        res.send(results);
+      });
+    });
 
+    app.post("/collection/:collectionName", (req, res, next) => {
+      req.connection.insert(req.body, (e, results) => {
+        if (e) return next(e);
+        let response = { message: "Success" };
+        res.send(response);
+      });
+    });
 
-
- app.put("/collection/:collectionName/:id", (req, res, next) => {
+    app.put("/collection/:collectionName/:id", (req, res, next) => {
   try {
     const objectID = require("mongodb").ObjectID;
 
@@ -87,26 +82,25 @@ MongoClient.connect("mongodb+srv://Databaseuser:Kynbataon@cluster0.kvycak7.mongo
   }
 });
 
-        // Search
-        app.get('/collection/:collectionName/search', (req, res, next) => {
-            let query_str = req.query.key_word;
-            req.collection.find({}).toArray((e, results) => {
-                if (e) return next(e);
-                let newList = results.filter((lesson) => {
-                    return lesson.subject.toLowerCase().match(query_str) || lesson.location.toLowerCase().match(query_str);
-                });
-                res.send(newList);
-            });
-        });
-        //Order
-        // app.post('/collection/order', (req, res, next) => {
-        //     req.collection.insert(req.body, (e, result) => {
-        //         if (e) return next(e);
-        //         let response = { "message": "success" };
-        //         res.send(response);
-        //     });
-        // });
-         // Add order and update lesson spaces
+
+    // Search route with regular expression and case-insensitive matching
+    app.get("/collection/lesson/search", (req, res, next) => {
+      let query_str = req.query.key_word;
+      Lesson.find({
+        $or: [
+          { subject: { $regex: query_str, $options: "i" } },
+          { location: { $regex: query_str, $options: "i" } }
+        ]
+      }).toArray((err, lessons) => {
+        if (err) {
+          res.status(500).send("Error retrieving lessons from the database");
+        } else {
+          res.json(lessons);
+        }
+      });
+    });
+
+    // Add order and update lesson spaces
     app.post("/collection/order/confrimorder", async (req, res) => {
       const order = req.body;
 
@@ -138,45 +132,31 @@ MongoClient.connect("mongodb+srv://Databaseuser:Kynbataon@cluster0.kvycak7.mongo
         res.status(500).send(errorMessage);
       }
     });
-        app.get('/collection/lesson/search', (req, res, next) => {
-            let query_str = req.query.key_word;
-            Lesson.find({
-                $or: [
-                    { subject: { $regex: query_str, $options: 'i' } },
-                    { location: { $regex: query_str, $options: 'i' } }
-                ]
-            }).toArray((err, lessons) => {
-                if (err) {
-                    res.status(500).send('Error retrieving lessons from the database');
-                } else {
-                    res.json(lessons);
-                }
-            });
-        });
-        app.use(function(req, res, next) {
-            var filePath = path.join(__dirname, "static", req.url);
-            fs.stat(filePath, function(err, fileInfo) {
-                if (err) {
-                    next();
-                    return;
-                }
-                if (fileInfo.isFile()) {
-                    res.sendFile(filePath);
-                } else {
-                    next();
-                }
-            });
-        });
 
-        app.use(function(req, res) {
-            res.status(404);
-            res.send("File not found");
-        });
+    app.use(function (req, res, next) {
+      var filePath = path.join(__dirname, "img", req.url);
+      fs.stat(filePath, function (err, fileInfo) {
+        if (err) {
+          next();
+          return;
+        }
+        if (fileInfo.isFile()) {
+          res.sendFile(filePath);
+        } else {
+          next();
+        }
+      });
+    });
 
-        const port = process.env.PORT || 3000;
+    app.use(function (req, res) {
+      res.status(404);
+      res.send("File not found");
+    });
 
-        app.listen(port, () => {
-            console.log("App running on port", port);
-        });
-    }
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+
+    });
+  }
 });
