@@ -67,7 +67,7 @@ MongoClient.connect(connectionString, (err, client) => {
     const objectID = require("mongodb").ObjectID;
 
     req.connection.updateOne(
-      { _id: new objectID(req.params.id) },
+      { _id: req.params.id },
       { $inc: { space: -1 } }, // Decrementing space by 1
       (e, result) => {
         if (e) return next(e);
