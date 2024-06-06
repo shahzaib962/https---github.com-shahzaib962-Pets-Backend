@@ -67,7 +67,7 @@
   "location": "Block 6, Field 1",
   "price": 425,
   "space": 8,
-  "image": "img/Football.jpg"
+  "image": "img/football.png"
 },{
   "_id": {
     "$oid": "63cf6d91525e30767689774b"
